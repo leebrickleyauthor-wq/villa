@@ -241,5 +241,37 @@ class RenderInkPathTests(unittest.TestCase):
                 self.assertEqual(actual_p95.tobytes(), p95.tobytes())
 
 
+    def test_histogram_p95_regression(self):
+        rng = np.random.default_rng(123)
+        arrays = [
+            np.arange(20, dtype=np.uint8).reshape(4, 5),
+            np.zeros((37, 41), dtype=np.uint8),
+            rng.integers(0, 256, (101, 107), dtype=np.uint8),
+            rng.integers(0, 65536, (101, 107), dtype=np.uint16),
+            np.full((37, 41), 200, dtype=np.uint16),
+        ]
+
+        for comp in arrays:
+            reference = np.percentile(
+                comp.astype(np.float32), 95
+            )
+            actual = render_ink.histogram_p95(comp)
+            self.assertEqual(actual.tobytes(), reference.tobytes())
+
+        n = 16777218
+        boundary = int((n - 1) * 0.95)
+
+        for delta in (-1, 0, 1):
+            comp = np.full(n, 200, dtype=np.uint8)
+            comp[:boundary + delta] = 0
+
+            reference = np.percentile(
+                comp.astype(np.float32), 95
+            )
+            actual = render_ink.histogram_p95(comp)
+            self.assertEqual(actual.tobytes(), reference.tobytes())
+
+
+
 if __name__ == "__main__":
     unittest.main()
