@@ -361,6 +361,39 @@ def max_composite(tif_paths):
     return composite
 
 
+P95_BLOCK_PIXELS = 1 << 18
+
+
+def histogram_p95(comp):
+    # Preserve NumPy's version-specific percentile arithmetic.
+    # Untested releases retain the existing percentile implementation.
+    if (np.__version__ not in ('2.3.5', '2.5.2') or comp.dtype.kind != 'u'
+            or comp.dtype.itemsize > 2 or not comp.flags.c_contiguous or not comp.size):
+        if comp.dtype.kind == 'u' and comp.dtype.itemsize <= 2 and comp.size:
+            lower = np.percentile(comp, 95, method='lower')
+            if lower == np.percentile(comp, 95, method='higher'):
+                return np.float32(lower)
+        return np.percentile(
+            comp.astype(np.float32), 95, overwrite_input=True
+        )
+    hist = np.zeros(1 << (8 * comp.dtype.itemsize), dtype=np.int64)
+    flat = comp.reshape(-1)
+    for i in range(0, flat.size, P95_BLOCK_PIXELS):
+        hist += np.bincount(flat[i:i+P95_BLOCK_PIXELS], minlength=hist.size)
+    cdf = hist.cumsum()
+    if np.__version__ == '2.3.5':
+        rank = (flat.size - 1) * np.true_divide(95, np.float32(100))
+        lo = min(int(rank), flat.size - 1)
+        gamma = np.asarray(rank - lo, dtype=np.asarray(rank).dtype)
+    else:  # NumPy 2.5.2: double precision rank and weak Python scalar interpolation
+        rank = (flat.size - 1) * np.true_divide(95, 100)
+        lo = min(int(rank), flat.size - 1)
+        gamma = float(rank - lo)
+    hi = min(lo+1, flat.size-1)
+    x, y = np.searchsorted(cdf, [lo, hi], side='right')
+    return np.quantile(np.array([x, y], dtype=np.float32), gamma)
+
+
 def scale_to_uint8(comp):
     """Scale a composite to 8 bits with its 95th percentile at 255, clipping above.
 
@@ -374,14 +407,7 @@ def scale_to_uint8(comp):
         p95 = np.percentile(strip, 95)
         strip = np.clip(strip / p95, 0, 1) * 255 if p95 > 0 else strip
         return strip.astype(np.uint8), p95
-    # The percentile interpolates between the 'lower' and 'higher' order statistics. When
-    # they are equal, as they nearly always are in a large integer strip, the float32
-    # percentile is exactly that value; otherwise compute it on a float32 copy of the strip.
-    lower = np.percentile(comp, 95, method='lower')
-    if lower == np.percentile(comp, 95, method='higher'):
-        p95 = np.float32(lower)
-    else:
-        p95 = np.percentile(comp.astype(np.float32), 95, overwrite_input=True)
+    p95 = histogram_p95(comp)
     lut = np.arange(np.iinfo(comp.dtype).max + 1, dtype=np.float32)
     lut = (np.clip(lut / p95, 0, 1) * 255 if p95 > 0 else lut).astype(np.uint8)
     strip8 = np.empty(comp.shape, dtype=np.uint8)
