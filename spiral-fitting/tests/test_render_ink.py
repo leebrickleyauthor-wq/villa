@@ -273,5 +273,29 @@ class RenderInkPathTests(unittest.TestCase):
 
 
 
+    def test_histogram_p95_compatibility_matrix(self):
+        rng = np.random.default_rng(42)
+        for dtype in (np.uint8, np.uint16):
+            maximum = np.iinfo(dtype).max
+            for n in (1, 2, 3, 19, 20, 21, 99, 100, 101, 1000,
+                      65537, 262145, 1000000, 16777217):
+                for kind in range(4):
+                    with self.subTest(dtype=dtype, n=n, kind=kind):
+                        if kind == 0:
+                            comp = rng.integers(0, maximum + 1, n, dtype=dtype)
+                        elif kind == 1:
+                            comp = np.full(n, 17, dtype=dtype)
+                        elif kind == 2:
+                            comp = np.zeros(n, dtype=dtype)
+                            comp[int(n * .95):] = maximum
+                        else:
+                            comp = rng.integers(0, 10, n, dtype=dtype)[::2]
+                        reference = np.percentile(comp.astype(np.float32), 95)
+                        actual = render_ink.histogram_p95(comp)
+                        self.assertEqual(np.asarray(actual).dtype,
+                                         np.asarray(reference).dtype)
+                        self.assertEqual(actual.tobytes(), reference.tobytes())
+
+
 if __name__ == "__main__":
     unittest.main()
