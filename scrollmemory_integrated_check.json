@@ -1,0 +1,20 @@
+{
+  "python": "3.13.18 (main, Oct 26 2026, 15:28:15) [GCC 13.3.0]",
+  "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+  "commit": "d6b41edc568a16e6c46770ff6bdeb64e821a0d15",
+  "numpy": "2.4.6",
+  "tests": {
+    "returncode": 0,
+    "output": ".............                                                            [100%]\n13 passed in 8.99s\n"
+  },
+  "native_release": {
+    "tag": "stable",
+    "assets": [
+      {
+        "name": "VC3D-f7756c7-2026-11-03-linux-x86_64.AppImage",
+        "url": "https://github.com/ScrollPrize/villa/releases/download/stable/VC3D-f7756c7-2026-11-03-linux-x86_64.AppImage",
+        "size": 137841144
+      }
+    ]
+  }
+}
