@@ -1,0 +1,61 @@
+{
+  "source": "Summary transcribed from scrollmemory_native_v3.json; not the full raw log",
+  "baseline_commit": "6222de0749401a4209b35453d1989de62d9ce2a6",
+  "revised_commit": "d6b41edc568a16e6c46770ff6bdeb64e821a0d15",
+  "numpy": "2.4.6",
+  "python": "3.13.18",
+  "mesh": "PHercParis4/segments/20231012184424/mesh/20231012184424-on-20260411134726-2.4um.tifxyz/",
+  "volume": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHercParis4/volumes/20260411134726-2.400um-0.2m-78keV-masked.zarr/",
+  "trials": [
+    {
+      "method": "baseline",
+      "warmup": true,
+      "seconds": 93.33207772900005
+    },
+    {
+      "method": "baseline",
+      "warmup": false,
+      "seconds": 69.31340230400008
+    },
+    {
+      "method": "revised",
+      "warmup": false,
+      "seconds": 68.458225244
+    },
+    {
+      "method": "revised",
+      "warmup": false,
+      "seconds": 65.89900959499994
+    },
+    {
+      "method": "baseline",
+      "warmup": false,
+      "seconds": 68.69877564399997
+    }
+  ],
+  "median_seconds": {
+    "baseline": 69.00608897400002,
+    "revised": 67.17861741949997
+  },
+  "all_output_hashes_match": true,
+  "all_returncodes": 0,
+  "jpg_dimensions": [
+    9465,
+    6350
+  ],
+  "printed_p95": 119,
+  "common_output_sha256": {
+    "00.tif": "f3f51b7e26675bde567ab6ae2eeffd5f3eb44e1b9726d0523088bdeb47775e60",
+    "01.tif": "68f2d5911248e9d880c464a53d691298b82de6e2edce14e2846d3f08e1dca3df",
+    "02.tif": "748a5f76fe94f20c756db60daeefcdee41f1a0320a7e4abfcf9c7d4d644fdbac",
+    "03.tif": "9d03c778d456331bef0c360da8d6017515645e539b03cbbe93fd02fb8ece270e",
+    "04.tif": "c9af9d2a69b6a0297ca39221a704f67e3761caa66985e8579dbb5ba4e0689a73",
+    "w001-001.jpg": "8114d78960260495178737e62555209b18bf2b667c7d5af12c78e296405dab37"
+  },
+  "limitations": [
+    "Two timed runs per method; observed speed difference not established causally",
+    "No peak memory data",
+    "Flattening and full-scroll disabled",
+    "Renderer cache warning; all runs completed"
+  ]
+}
