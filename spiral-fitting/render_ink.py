@@ -42,6 +42,7 @@ import subprocess
 import uuid
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import lru_cache
 
 import click
 import numpy as np
@@ -364,34 +365,36 @@ def max_composite(tif_paths):
 P95_BLOCK_PIXELS = 1 << 18
 
 
+@lru_cache(maxsize=1)
+def percentile_scalar_type():
+    """Discover the installed NumPy's float32 percentile result dtype."""
+    return np.asarray(np.percentile(np.array([0, 0], dtype=np.float32), 95)).dtype
+
+
 def histogram_p95(comp):
-    # Preserve NumPy's version-specific percentile arithmetic.
-    # Untested releases retain the existing percentile implementation.
-    if (np.__version__ not in ('2.3.5', '2.5.2') or comp.dtype.kind != 'u'
-            or comp.dtype.itemsize > 2 or not comp.flags.c_contiguous or not comp.size):
-        if comp.dtype.kind == 'u' and comp.dtype.itemsize <= 2 and comp.size:
-            lower = np.percentile(comp, 95, method='lower')
-            if lower == np.percentile(comp, 95, method='higher'):
-                return np.float32(lower)
-        return np.percentile(
-            comp.astype(np.float32), 95, overwrite_input=True
-        )
-    hist = np.zeros(1 << (8 * comp.dtype.itemsize), dtype=np.int64)
-    flat = comp.reshape(-1)
-    for i in range(0, flat.size, P95_BLOCK_PIXELS):
-        hist += np.bincount(flat[i:i+P95_BLOCK_PIXELS], minlength=hist.size)
-    cdf = hist.cumsum()
-    if np.__version__ == '2.3.5':
-        rank = (flat.size - 1) * np.true_divide(95, np.float32(100))
-        lo = min(int(rank), flat.size - 1)
-        gamma = np.asarray(rank - lo, dtype=np.asarray(rank).dtype)
-    else:  # NumPy 2.5.2: double precision rank and weak Python scalar interpolation
-        rank = (flat.size - 1) * np.true_divide(95, 100)
-        lo = min(int(rank), flat.size - 1)
-        gamma = float(rank - lo)
-    hi = min(lo+1, flat.size-1)
-    x, y = np.searchsorted(cdf, [lo, hi], side='right')
-    return np.quantile(np.array([x, y], dtype=np.float32), gamma)
+    """Use bounded histogram counts when the percentile rank is unambiguous.
+
+    Cover float32 and float64 rank arithmetic conservatively. If the surrounding
+    order statistics differ, delegate to NumPy rather than reproducing its
+    version-dependent interpolation. Only contiguous uint8/uint16 are eligible.
+    """
+    if (comp.dtype.kind == 'u' and comp.dtype.itemsize <= 2
+            and comp.flags.c_contiguous and comp.size):
+        flat = comp.reshape(-1)
+        hist = np.zeros(1 << (8 * comp.dtype.itemsize), dtype=np.int64)
+        for i in range(0, flat.size, P95_BLOCK_PIXELS):
+            hist += np.bincount(flat[i:i + P95_BLOCK_PIXELS], minlength=hist.size)
+        cdf = hist.cumsum()
+        n = flat.size - 1
+        rank = n * 0.95
+        # Allow for rounding of the sample count and rank in float32.
+        margin = max(1., 4 * float(np.spacing(np.float32(n))))
+        lo = max(0, int(np.floor(rank - margin)))
+        hi = min(n, int(np.ceil(rank + margin)))
+        x, y = np.searchsorted(cdf, [lo, hi], side='right')
+        if x == y:
+            return percentile_scalar_type().type(x)
+    return np.percentile(comp.astype(np.float32), 95, overwrite_input=True)
 
 
 def scale_to_uint8(comp):
